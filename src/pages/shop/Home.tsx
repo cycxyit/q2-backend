@@ -21,6 +21,13 @@ const Home = () => {
     const [announcement, setAnnouncement] = useState<string | null>(null);
     const [showPopup, setShowPopup] = useState(false);
 
+    const closePopup = () => {
+        setShowPopup(false);
+        if (announcement) {
+            localStorage.setItem('qbit_last_announcement', announcement);
+        }
+    };
+
     useEffect(() => {
         // Fetch products and announcement in parallel
         Promise.all([
@@ -30,8 +37,14 @@ const Home = () => {
             .then(([productsRes, settingsRes]) => {
                 setProducts(productsRes.data);
                 if (settingsRes && settingsRes.data && settingsRes.data.value) {
-                    setAnnouncement(settingsRes.data.value);
-                    setShowPopup(true);
+                    const fetchedAnnouncement = settingsRes.data.value;
+                    setAnnouncement(fetchedAnnouncement);
+
+                    // Check if it's new or updated
+                    const lastSeen = localStorage.getItem('qbit_last_announcement');
+                    if (fetchedAnnouncement !== lastSeen) {
+                        setShowPopup(true);
+                    }
                 }
                 setLoading(false);
             })
@@ -77,14 +90,14 @@ const Home = () => {
         <div className="fade-in">
             <div style={{
                 textAlign: 'center',
-                margin: '3rem 0',
-                padding: '3rem',
+                margin: '1.5rem 0 2rem 0',
+                padding: '2rem 1.5rem',
                 backgroundColor: 'var(--primary)',
                 color: 'white',
                 borderRadius: 'var(--radius-lg)'
             }}>
-                <h1 style={{ fontSize: '3rem', margin: '0 0 1rem 0' }}>欢迎来到 承品MEMBER‘S DAY 淘货网</h1>
-                <p style={{ fontSize: '1.2rem', opacity: 0.9 }}>永远保持学习的状态，别因为功成名就，而不屑提问。也别因为知道了很多而停止学习！</p>
+                <h1 style={{ fontSize: '2rem', margin: '0 0 0.8rem 0' }}>欢迎来到 承品MEMBER‘S DAY 淘货网</h1>
+                <p style={{ fontSize: '1rem', opacity: 0.9, margin: 0 }}>永远保持学习的状态，别因为功成名就，而不屑提问。也别因为知道了很多而停止学习！</p>
             </div>
 
             {products.length === 0 ? (
@@ -166,7 +179,7 @@ const Home = () => {
                             <button
                                 className="btn-primary"
                                 style={{ width: '200px', fontSize: '1.1rem', padding: '0.8rem' }}
-                                onClick={() => setShowPopup(false)}
+                                onClick={closePopup}
                             >
                                 我知道了 I Know
                             </button>

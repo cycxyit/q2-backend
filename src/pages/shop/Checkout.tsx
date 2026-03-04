@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 
 const Checkout = () => {
     const [cart, setCart] = useState<any[]>([]);
+    const [stockMap, setStockMap] = useState<Record<number, number>>({});
+    const [stockLoading, setStockLoading] = useState(true);
     const [form, setForm] = useState({ name: '', phone: '', address: '', remarks: '' });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -14,6 +16,25 @@ const Checkout = () => {
     useEffect(() => {
         const saved = JSON.parse(localStorage.getItem('qbit_cart') || '[]');
         setCart(saved);
+
+        const fetchStock = async () => {
+            try {
+                const res = await axios.get('http://localhost:5000/api/products');
+                const map: Record<number, number> = {};
+                res.data.forEach((p: any) => {
+                    map[p.id] = p.stock;
+                });
+                setStockMap(map);
+            } catch (err) {
+                console.error('Failed to fetch stock for checkout:', err);
+            } finally {
+                setStockLoading(false);
+            }
+        };
+
+        fetchStock();
+        const interval = setInterval(fetchStock, 5000);
+        return () => clearInterval(interval);
     }, []);
 
     // Persist cart to localStorage whenever it changes
@@ -24,8 +45,15 @@ const Checkout = () => {
 
     const updateQty = (index: number, delta: number) => {
         const newCart = [...cart];
-        const newQty = newCart[index].quantity + delta;
+        const productId = newCart[index].productId;
+        const currentStock = stockMap[productId];
+
+        let newQty = newCart[index].quantity + delta;
         if (newQty < 1) return; // Don't go below 1
+        if (currentStock !== undefined && newQty > currentStock) {
+            newQty = currentStock; // Cap at max stock
+        }
+
         newCart[index] = { ...newCart[index], quantity: newQty };
         saveCart(newCart);
     };
@@ -36,6 +64,11 @@ const Checkout = () => {
     };
 
     const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+
+    const hasInsufficientStock = cart.some(item => {
+        const currentStock = stockMap[item.productId];
+        return !stockLoading && currentStock !== undefined && item.quantity > currentStock;
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -110,82 +143,108 @@ const Checkout = () => {
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {cart.map((item, i) => (
-                            <div key={i} style={{
-                                display: 'flex', alignItems: 'center', gap: '1.2rem',
-                                padding: '1rem 1.2rem',
-                                backgroundColor: 'var(--card-bg)',
-                                borderRadius: 'var(--radius-lg)',
-                                boxShadow: 'var(--shadow-sm)',
-                                border: '1px solid var(--border-color)'
-                            }}>
-                                {/* Product Image */}
-                                <img
-                                    src={item.imageUrl || 'https://placehold.co/80x80?text=?'}
-                                    alt={item.name}
-                                    style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: 'var(--radius-md)', flexShrink: 0 }}
-                                />
+                        {cart.map((item, i) => {
+                            const currentStock = stockMap[item.productId];
+                            const isInsufficient = !stockLoading && currentStock !== undefined && item.quantity > currentStock;
+                            const isOutOfStock = !stockLoading && currentStock === 0;
 
-                                {/* Product Info */}
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <h4 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {item.name}
-                                    </h4>
-                                    <p style={{ margin: 0, color: 'var(--primary)', fontWeight: 700, fontSize: '1.05rem' }}>
-                                        {item.price}个Q币 <span style={{ color: 'var(--text-light)', fontWeight: 400, fontSize: '0.85rem' }}>each</span>
-                                    </p>
+                            return (
+                                <div key={i} style={{
+                                    display: 'flex', gap: '1.2rem',
+                                    padding: '1rem 1.2rem',
+                                    backgroundColor: isInsufficient ? '#f3f4f6' : 'var(--card-bg)',
+                                    opacity: isInsufficient ? 0.6 : 1,
+                                    filter: isInsufficient ? 'grayscale(100%)' : 'none',
+                                    borderRadius: 'var(--radius-lg)',
+                                    boxShadow: 'var(--shadow-sm)',
+                                    border: isInsufficient ? '1px solid #ef4444' : '1px solid var(--border-color)',
+                                    alignItems: 'flex-start'
+                                }}>
+                                    {/* Product Image */}
+                                    <img
+                                        src={item.imageUrl || 'https://placehold.co/80x80?text=?'}
+                                        alt={item.name}
+                                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+                                    />
+
+                                    {/* Product Info & Controls */}
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                                        {/* Top: Name & Price */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <h4 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                    {item.name}
+                                                </h4>
+                                                <p style={{ margin: 0, color: 'var(--primary)', fontWeight: 700, fontSize: '0.95rem' }}>
+                                                    {item.price}个Q币 <span style={{ color: 'var(--text-light)', fontWeight: 400, fontSize: '0.85rem' }}>each</span>
+                                                </p>
+                                                {isOutOfStock ? (
+                                                    <p style={{ margin: '0.4rem 0 0', color: '#EF4444', fontSize: '0.85rem', fontWeight: 'bold' }}>❌ 已售完</p>
+                                                ) : isInsufficient ? (
+                                                    <p style={{ margin: '0.4rem 0 0', color: '#EF4444', fontSize: '0.85rem', fontWeight: 'bold' }}>⚠️ 库存不足 (仅剩 {currentStock} 件)</p>
+                                                ) : null}
+                                            </div>
+                                            <div style={{ textAlign: 'right', fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-dark)', whiteSpace: 'nowrap' }}>
+                                                {(item.price * item.quantity).toFixed(2)}个Q币
+                                            </div>
+                                        </div>
+
+                                        {/* Bottom: Quantity & Delete */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.2rem' }}>
+                                            {/* Quantity Controls */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 0, border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                                                <button
+                                                    onClick={() => updateQty(i, -1)}
+                                                    disabled={item.quantity <= 1}
+                                                    style={{
+                                                        width: '32px', height: '32px', fontSize: '1.2rem', fontWeight: 'bold',
+                                                        border: 'none', cursor: item.quantity <= 1 ? 'not-allowed' : 'pointer',
+                                                        backgroundColor: item.quantity <= 1 ? '#F9FAFB' : 'white',
+                                                        color: item.quantity <= 1 ? '#D1D5DB' : '#374151',
+                                                        borderRight: '1px solid var(--border-color)',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                    }}
+                                                >−</button>
+                                                <span style={{ minWidth: '40px', textAlign: 'center', fontSize: '0.95rem', fontWeight: 700 }}>
+                                                    {item.quantity}
+                                                </span>
+                                                <button
+                                                    onClick={() => updateQty(i, +1)}
+                                                    disabled={currentStock !== undefined && item.quantity >= currentStock}
+                                                    style={{
+                                                        width: '32px', height: '32px', fontSize: '1.2rem', fontWeight: 'bold',
+                                                        border: 'none', cursor: (currentStock !== undefined && item.quantity >= currentStock) ? 'not-allowed' : 'pointer',
+                                                        backgroundColor: (currentStock !== undefined && item.quantity >= currentStock) ? '#F9FAFB' : 'white',
+                                                        color: (currentStock !== undefined && item.quantity >= currentStock) ? '#D1D5DB' : '#374151',
+                                                        borderLeft: '1px solid var(--border-color)',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                    }}
+                                                >+</button>
+                                            </div>
+
+                                            {/* Delete Button */}
+                                            <button
+                                                onClick={() => removeItem(i)}
+                                                title="Remove item"
+                                                style={{
+                                                    padding: '0.4rem 0.6rem',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    border: 'none', cursor: 'pointer',
+                                                    backgroundColor: '#FEE2E2', color: '#EF4444',
+                                                    fontSize: '0.85rem', fontWeight: 600,
+                                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                                    transition: 'background 0.15s'
+                                                }}
+                                                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#FECACA')}
+                                                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#FEE2E2')}
+                                            >
+                                                🗑 Delete
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-
-                                {/* Quantity Controls */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 0, border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden', flexShrink: 0 }}>
-                                    <button
-                                        onClick={() => updateQty(i, -1)}
-                                        disabled={item.quantity <= 1}
-                                        style={{
-                                            width: '36px', height: '36px', fontSize: '1.2rem', fontWeight: 'bold',
-                                            border: 'none', cursor: item.quantity <= 1 ? 'not-allowed' : 'pointer',
-                                            backgroundColor: item.quantity <= 1 ? '#F9FAFB' : 'white',
-                                            color: item.quantity <= 1 ? '#D1D5DB' : '#374151',
-                                            borderRight: '1px solid var(--border-color)'
-                                        }}
-                                    >−</button>
-                                    <span style={{ minWidth: '40px', textAlign: 'center', fontSize: '0.95rem', fontWeight: 700, padding: '0 4px' }}>
-                                        {item.quantity}
-                                    </span>
-                                    <button
-                                        onClick={() => updateQty(i, +1)}
-                                        style={{
-                                            width: '36px', height: '36px', fontSize: '1.2rem', fontWeight: 'bold',
-                                            border: 'none', cursor: 'pointer',
-                                            backgroundColor: 'white', color: '#374151',
-                                            borderLeft: '1px solid var(--border-color)'
-                                        }}
-                                    >+</button>
-                                </div>
-
-                                {/* Line Total */}
-                                <div style={{ minWidth: '72px', textAlign: 'right', fontWeight: 700, fontSize: '1rem', flexShrink: 0 }}>
-                                    {(item.price * item.quantity).toFixed(2)}个Q币
-                                </div>
-
-                                {/* Delete Button */}
-                                <button
-                                    onClick={() => removeItem(i)}
-                                    title="Remove item"
-                                    style={{
-                                        width: '34px', height: '34px', borderRadius: '50%',
-                                        border: 'none', cursor: 'pointer', flexShrink: 0,
-                                        backgroundColor: '#FEE2E2', color: '#EF4444',
-                                        fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        transition: 'background 0.15s'
-                                    }}
-                                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#FECACA')}
-                                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#FEE2E2')}
-                                >
-                                    🗑
-                                </button>
-                            </div>
-                        ))}
+                            );
+                        })}
 
                         {/* Cart Total Bar */}
                         <div style={{
@@ -268,10 +327,10 @@ const Checkout = () => {
                     <button
                         type="submit"
                         className="btn-primary"
-                        disabled={cart.length === 0 || loading}
-                        style={{ marginTop: '0.5rem', padding: '1rem', fontSize: '1.05rem', opacity: cart.length === 0 ? 0.5 : 1 }}
+                        disabled={cart.length === 0 || loading || hasInsufficientStock}
+                        style={{ marginTop: '0.5rem', padding: '1rem', fontSize: '1.05rem', opacity: (cart.length === 0 || hasInsufficientStock) ? 0.5 : 1 }}
                     >
-                        {loading ? '⏳ Processing...' : `✅ Place Order (${total.toFixed(2)}个Q币)`}
+                        {loading ? '⏳ Processing...' : hasInsufficientStock ? '⚠️ 购物车中有商品库存不足' : `✅ Place Order (${total.toFixed(2)}个Q币)`}
                     </button>
                 </form>
             </div>

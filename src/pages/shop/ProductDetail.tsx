@@ -51,9 +51,10 @@ const ProductDetail = () => {
             cart.push({ productId: product.id, name: product.name, price: product.price, quantity, imageUrl: images[0] || product.imageUrl });
         }
         localStorage.setItem('qbit_cart', JSON.stringify(cart));
-        setAddedMsg(`✅ Added ${quantity} × ${product.name} to cart!`);
-        setTimeout(() => setAddedMsg(''), 2000);
-        fetchProduct();
+        setAddedMsg(`✅ ${quantity} × ${product.name} 已加入购物车!`);
+        setTimeout(() => {
+            navigate('/');
+        }, 1500);
     };
 
     const buyNow = () => { addToCart(); navigate('/checkout'); };
@@ -156,7 +157,7 @@ const ProductDetail = () => {
                 )}
 
                 {addedMsg && (
-                    <div style={{ padding: '0.7rem 1rem', marginBottom: '1rem', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 'var(--radius-md)', color: '#166534', fontSize: '0.88rem' }}>
+                    <div className="fade-in" style={{ padding: '0.7rem 1rem', marginBottom: '1rem', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 'var(--radius-md)', color: '#166534', fontSize: '0.88rem' }}>
                         {addedMsg}
                     </div>
                 )}
