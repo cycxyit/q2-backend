@@ -6,16 +6,22 @@ const Checkout = () => {
     const [cart, setCart] = useState<any[]>([]);
     const [stockMap, setStockMap] = useState<Record<number, number>>({});
     const [stockLoading, setStockLoading] = useState(true);
-    const [form, setForm] = useState({ name: '', phone: '', address: '', remarks: '' });
+    const [form, setForm] = useState({ name: '', phone: '', address: '', branch: '', remarks: '' });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [orderId, setOrderId] = useState<string | null>(null);
+    const [userBalance, setUserBalance] = useState<number | null>(null);
     const navigate = useNavigate();
 
     useEffect(() => {
         const saved = JSON.parse(localStorage.getItem('qbit_cart') || '[]');
         setCart(saved);
+
+        const savedBalance = localStorage.getItem('user_qbit_balance');
+        if (savedBalance !== null) {
+            setUserBalance(parseFloat(savedBalance));
+        }
 
         const fetchStock = async () => {
             try {
@@ -70,6 +76,9 @@ const Checkout = () => {
         return !stockLoading && currentStock !== undefined && item.quantity > currentStock;
     });
 
+    const isOverspending = userBalance !== null && total > userBalance;
+    const canSubmit = cart.length > 0 && !loading && !hasInsufficientStock && !isOverspending;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -83,6 +92,7 @@ const Checkout = () => {
                 customerName: form.name,
                 phone: form.phone,
                 address: form.address,
+                branch: form.branch,
                 remarks: form.remarks,
             }, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -91,6 +101,14 @@ const Checkout = () => {
             setOrderId(res.data.orderId);
             setSuccess(true);
             localStorage.removeItem('qbit_cart');
+            
+            // Deduct from local balance and save it
+            if (userBalance !== null) {
+                const newBalance = userBalance - total;
+                localStorage.setItem('user_qbit_balance', newBalance.toString());
+                setUserBalance(newBalance);
+            }
+            
         } catch (err: any) {
             const msg = err?.response?.data?.message || err?.message || 'Unknown error';
             const status = err?.response?.status || 'N/A';
@@ -109,14 +127,35 @@ const Checkout = () => {
                     width: '80px', height: '80px', borderRadius: '50%',
                     backgroundColor: '#10B981', color: 'white', fontSize: '3rem', marginBottom: '2rem'
                 }}>✓</div>
-                <h1>Order Placed Successfully!</h1>
+                <h1 style={{ marginBottom: '0.5rem' }}>Order Placed Successfully!</h1>
+                <h2 style={{ marginTop: '0', color: 'var(--text-light)', marginBottom: '1.5rem' }}>订单提交成功！</h2>
+                
+                {userBalance !== null && (
+                    <div style={{
+                        display: 'inline-block',
+                        backgroundColor: '#F0FDF4',
+                        border: '1px solid #BBF7D0',
+                        color: '#166534',
+                        padding: '1rem 2rem',
+                        borderRadius: 'var(--radius-lg)',
+                        marginBottom: '1.5rem',
+                        fontSize: '1.1rem'
+                    }}>
+                        <strong>现有Q币 Remaining Balance:</strong> 
+                        <span style={{ fontSize: '1.4rem', fontWeight: 800, marginLeft: '0.8rem' }}>
+                            {userBalance.toFixed(2)}个Q币
+                        </span>
+                    </div>
+                )}
+
                 {orderId && (
                     <p style={{ fontFamily: 'monospace', color: 'var(--primary)', fontWeight: 600, fontSize: '1.1rem' }}>
                         Order ID: {orderId}
                     </p>
                 )}
-                <p style={{ color: 'var(--text-light)', marginBottom: '2rem' }}>
-                    Your order has been recorded. Our team will contact you shortly.
+                <p style={{ color: 'var(--text-light)', marginBottom: '2rem', lineHeight: '1.6' }}>
+                    Your order has been recorded. Our team will contact you shortly.<br />
+                    您的订单已成功记录，我们的团队将很快与您联系。
                 </p>
                 <button className="btn-primary" onClick={() => navigate('/')}>Continue Shopping</button>
             </div>
@@ -290,14 +329,15 @@ const Checkout = () => {
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
                     {[
-                        { label: 'Your Name 你的名字', key: 'name', type: 'text', required: true },
-                        { label: 'Phone Number 电话号码', key: 'phone', type: 'text', required: true },
-                    ].map(({ label, key, type, required }) => (
+                        { label: 'Your Name 你的名字', key: 'name', type: 'text', required: true, placeholder: '陈小明 F1' },
+                        { label: 'Phone Number 电话号码', key: 'phone', type: 'text', required: true, placeholder: '0123456789' },
+                    ].map(({ label, key, type, required, placeholder }) => (
                         <div key={key}>
                             <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.9rem' }}>{label}</label>
                             <input
                                 required={required}
                                 type={type}
+                                placeholder={placeholder}
                                 value={(form as any)[key]}
                                 onChange={e => setForm({ ...form, [key]: e.target.value })}
                                 style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.95rem', boxSizing: 'border-box' }}
@@ -308,10 +348,25 @@ const Checkout = () => {
                         <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.9rem' }}>补习时间 Tuition Timetable</label>
                         <textarea
                             required
-                            rows={3}
+                            rows={5}
                             value={form.address}
                             onChange={e => setForm({ ...form, address: e.target.value })}
+                            placeholder={`F5
+星期一 Mandy老师 MM 4pm
+星期二 易老师 SEJ 5.30pm
+星期三 康老师 SN 4pm`}
                             style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', resize: 'vertical', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                        />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.9rem' }}>补习分院 Tuition Branch</label>
+                        <input
+                            required
+                            type="text"
+                            value={form.branch}
+                            onChange={e => setForm({ ...form, branch: e.target.value })}
+                            placeholder="HQ/Saleng"
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.95rem', boxSizing: 'border-box' }}
                         />
                     </div>
                     <div>
@@ -327,10 +382,10 @@ const Checkout = () => {
                     <button
                         type="submit"
                         className="btn-primary"
-                        disabled={cart.length === 0 || loading || hasInsufficientStock}
-                        style={{ marginTop: '0.5rem', padding: '1rem', fontSize: '1.05rem', opacity: (cart.length === 0 || hasInsufficientStock) ? 0.5 : 1 }}
+                        disabled={!canSubmit}
+                        style={{ marginTop: '0.5rem', padding: '1rem', fontSize: '1.05rem', opacity: !canSubmit ? 0.5 : 1 }}
                     >
-                        {loading ? '⏳ Processing...' : hasInsufficientStock ? '⚠️ 购物车中有商品库存不足' : `✅ Place Order (${total.toFixed(2)}个Q币)`}
+                        {loading ? '⏳ Processing...' : hasInsufficientStock ? '⚠️ 购物车中有商品库存不足' : isOverspending ? `⚠️ 超出当前余额 (现有 Q币: ${userBalance})` : `✅ Place Order (${total.toFixed(2)}个Q币)`}
                     </button>
                 </form>
             </div>

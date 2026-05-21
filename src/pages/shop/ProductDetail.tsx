@@ -12,6 +12,7 @@ const ProductDetail = () => {
     const [quantity, setQuantity] = useState(1);
     const [addedMsg, setAddedMsg] = useState('');
     const [activeImg, setActiveImg] = useState(0); // index of currently selected image
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const fetchProduct = useCallback(() => {
         axios.get(`http://localhost:5000/api/products/${id}?t=${Date.now()}`)
@@ -41,7 +42,7 @@ const ProductDetail = () => {
     const decreaseQty = () => setQuantity(q => Math.max(1, q - 1));
     const increaseQty = () => setQuantity(q => Math.min(product.stock, q + 1));
 
-    const addToCart = () => {
+    const addToCart = (redirect = true) => {
         const cart = JSON.parse(localStorage.getItem('qbit_cart') || '[]');
         const existing = cart.find((i: any) => i.productId === product.id);
         if (existing) {
@@ -51,13 +52,16 @@ const ProductDetail = () => {
             cart.push({ productId: product.id, name: product.name, price: product.price, quantity, imageUrl: images[0] || product.imageUrl });
         }
         localStorage.setItem('qbit_cart', JSON.stringify(cart));
-        setAddedMsg(`✅ ${quantity} × ${product.name} 已加入购物车!`);
-        setTimeout(() => {
-            navigate('/');
-        }, 1500);
+
+        if (redirect) {
+            setAddedMsg(`✅ ${quantity} × ${product.name} 已加入购物车!`);
+            setTimeout(() => {
+                navigate('/', { state: { fromCart: true } });
+            }, 2000);
+        }
     };
 
-    const buyNow = () => { addToCart(); navigate('/checkout'); };
+    const buyNow = () => { addToCart(false); navigate('/checkout'); };
 
     if (!product) return (
         <div className="fade-in" style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-light)' }}>
@@ -120,9 +124,36 @@ const ProductDetail = () => {
                     {product.price}个Q币
                 </p>
                 <div style={{ color: 'var(--text-light)', lineHeight: '1.7', marginBottom: '1.5rem', fontSize: '0.97rem' }}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                        {product.description || ''}
-                    </ReactMarkdown>
+                    {(() => {
+                        const desc = product.description || '';
+                        const isLong = desc.length > 100;
+                        const displayDesc = isLong && !isExpanded ? desc.slice(0, 100) + '...' : desc;
+                        return (
+                            <>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                                    {displayDesc}
+                                </ReactMarkdown>
+                                {isLong && (
+                                    <button
+                                        onClick={() => setIsExpanded(!isExpanded)}
+                                        style={{
+                                            marginTop: '0.5rem',
+                                            padding: '0.3rem 0.8rem',
+                                            border: 'none',
+                                            backgroundColor: 'var(--primary)',
+                                            color: 'white',
+                                            borderRadius: 'var(--radius-sm)',
+                                            fontSize: '0.85rem',
+                                            cursor: 'pointer',
+                                            fontWeight: 500
+                                        }}
+                                    >
+                                        {isExpanded ? '收起' : '展开'}
+                                    </button>
+                                )}
+                            </>
+                        );
+                    })()}
                 </div>
 
                 {/* Stock Status */}
@@ -163,7 +194,7 @@ const ProductDetail = () => {
                 )}
 
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                    <button className="btn-primary" onClick={addToCart} disabled={outOfStock}
+                    <button className="btn-primary" onClick={() => addToCart(true)} disabled={outOfStock}
                         style={{ flex: 1, fontSize: '1rem', padding: '0.9rem', opacity: outOfStock ? 0.5 : 1 }}>
                         🛒 Add to Cart
                     </button>

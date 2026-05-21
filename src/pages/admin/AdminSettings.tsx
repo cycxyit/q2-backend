@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 const AdminSettings = () => {
     const [announcement, setAnnouncement] = useState('');
@@ -97,7 +98,7 @@ const AdminSettings = () => {
                     <h3 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--text-light)' }}>👁️ 公告预览</h3>
                     <div style={{ backgroundColor: 'white', padding: '1.5rem', borderRadius: 'var(--radius-md)', minHeight: '200px' }}>
                         {announcement ? (
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                                 {announcement}
                             </ReactMarkdown>
                         ) : (

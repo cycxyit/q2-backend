@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
+import rehypeRaw from 'rehype-raw';
 
 interface Product {
     id: number;
@@ -15,16 +15,24 @@ interface Product {
 }
 
 const Home = () => {
+    const location = useLocation();
+    const fromCart = location.state?.fromCart;
+
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [announcement, setAnnouncement] = useState<string | null>(null);
     const [showPopup, setShowPopup] = useState(false);
+    const [showBalancePrompt, setShowBalancePrompt] = useState(false);
+    const [balanceInput, setBalanceInput] = useState('');
 
     const closePopup = () => {
         setShowPopup(false);
         if (announcement) {
             localStorage.setItem('qbit_last_announcement', announcement);
+        }
+        if (!fromCart) {
+            setShowBalancePrompt(true);
         }
     };
 
@@ -35,6 +43,7 @@ const Home = () => {
             axios.get('http://localhost:5000/api/settings/ANNOUNCEMENT_MD').catch(() => null)
         ])
             .then(([productsRes, settingsRes]) => {
+                let announcementTriggered = false;
                 setProducts(productsRes.data);
                 if (settingsRes && settingsRes.data && settingsRes.data.value) {
                     const fetchedAnnouncement = settingsRes.data.value;
@@ -44,8 +53,14 @@ const Home = () => {
                     const lastSeen = localStorage.getItem('qbit_last_announcement');
                     if (fetchedAnnouncement !== lastSeen) {
                         setShowPopup(true);
+                        announcementTriggered = true;
                     }
                 }
+
+                if (!announcementTriggered && !fromCart) {
+                    setShowBalancePrompt(true);
+                }
+
                 setLoading(false);
             })
             .catch(err => {
@@ -54,7 +69,18 @@ const Home = () => {
                 setError(`无法加载产品 (${msg})。请确保后端服务器正在运行 (port 5000)`);
                 setLoading(false);
             });
-    }, []);
+    }, [fromCart]);
+
+    const handleBalanceSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const num = parseFloat(balanceInput);
+        if (!isNaN(num) && num >= 0) {
+            localStorage.setItem('user_qbit_balance', num.toString());
+            setShowBalancePrompt(false);
+        } else {
+            alert('请输入有效的Q币金额');
+        }
+    };
 
     if (loading) return (
         <div className="container fade-in" style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-light)' }}>
@@ -96,8 +122,8 @@ const Home = () => {
                 color: 'white',
                 borderRadius: 'var(--radius-lg)'
             }}>
-                <h1 style={{ fontSize: '2rem', margin: '0 0 0.8rem 0' }}>欢迎来到 承品MEMBER‘S DAY 淘货网</h1>
-                <p style={{ fontSize: '1rem', opacity: 0.9, margin: 0 }}>永远保持学习的状态，别因为功成名就，而不屑提问。也别因为知道了很多而停止学习！</p>
+                <h1 style={{ fontSize: '2rem', margin: '0 0 0.8rem 0' }}>欢迎来到 承品淘货网</h1>
+                <p style={{ fontSize: '1rem', opacity: 0.9, margin: 0 }}>承品老师们在班上都看得到你很好的表现<br />奖励你用智力Q币来换去你想要的礼物🎁</p>
             </div>
 
             {products.length === 0 ? (
@@ -167,7 +193,7 @@ const Home = () => {
                             padding: '1.5rem 2rem', overflowY: 'auto',
                             lineHeight: '1.6', fontSize: '0.95rem'
                         }}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                                 {announcement}
                             </ReactMarkdown>
                         </div>
@@ -184,6 +210,57 @@ const Home = () => {
                                 我知道了 I Know
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Balance Prompt Modal */}
+            {showBalancePrompt && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)',
+                    zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1rem', animation: 'fadeIn 0.3s ease-out'
+                }}>
+                    <div style={{
+                        backgroundColor: 'white',
+                        width: '100%', maxWidth: '400px',
+                        borderRadius: 'var(--radius-lg)',
+                        overflow: 'hidden',
+                        display: 'flex', flexDirection: 'column',
+                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)'
+                    }}>
+                        <div style={{
+                            padding: '1.2rem', backgroundColor: 'var(--primary)', color: 'white',
+                            textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold'
+                        }}>
+                            💰 现有Q币余额
+                        </div>
+                        <form onSubmit={handleBalanceSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <p style={{ margin: 0, textAlign: 'center', fontSize: '1rem', color: 'var(--text-dark)' }}>请问你现有的Q币：</p>
+                            <input
+                                type="number"
+                                autoFocus
+                                required
+                                min="0"
+                                step="any"
+                                value={balanceInput}
+                                onChange={e => setBalanceInput(e.target.value)}
+                                placeholder="输入现有Q币 (例: 50)"
+                                style={{
+                                    width: '100%', padding: '0.8rem', fontSize: '1.1rem',
+                                    borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)',
+                                    textAlign: 'center', boxSizing: 'border-box'
+                                }}
+                            />
+                            <button
+                                type="submit"
+                                className="btn-primary"
+                                style={{ width: '100%', fontSize: '1.1rem', padding: '0.8rem', marginTop: '0.5rem' }}
+                            >
+                                确认 Confirm
+                            </button>
+                        </form>
                     </div>
                 </div>
             )}
