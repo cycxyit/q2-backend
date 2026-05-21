@@ -1,73 +1,37 @@
-# React + TypeScript + Vite
+# Qbit Ecommerce - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the React + Vite frontend for the Qbit Ecommerce shop.
 
-Currently, two official plugins are available:
+## 🚀 Deploy to Vercel
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+You can deploy the frontend directly to Vercel with one click:
 
-## React Compiler
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2F[YOUR_GITHUB_USERNAME]%2F[YOUR_REPO_NAME]&root-directory=frontend&env=VITE_API_URL)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+> **⚠️ 注意 / Note:**
+>
+> 部署前，请确保你已经把项目推送到 GitHub。你需要把上方部署按钮链接中的 `[YOUR_GITHUB_USERNAME]` 和 `[YOUR_REPO_NAME]` 替换为你自己真实的 GitHub 用户名和仓库名。
 
-## Expanding the ESLint configuration
+### Environment Variables (环境变量)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+在点击部署按钮后，Vercel 会要求你填入以下环境变量：
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- `VITE_API_URL`: 你部署好的后端 API 地址 (例如 `https://your-backend.vercel.app/api`)。
+  *注：如果你前后端部署在同一个 Vercel 项目（同一域名），此处可以留空。*
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 本地开发 (Local Development)
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+1. 安装依赖:
+   ```bash
+   npm install
+   ```
+2. 运行开发环境:
+   ```bash
+   npm run dev
+   ```
+3. 构建生产环境:
+   ```bash
+   npm run build
+   ```
