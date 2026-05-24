@@ -56,8 +56,8 @@ const ProductDetail = () => {
         if (redirect) {
             setAddedMsg(`✅ ${quantity} × ${product.name} 已加入购物车!`);
             setTimeout(() => {
-                navigate('/', { state: { fromCart: true } });
-            }, 2000);
+                setAddedMsg('');
+            }, 3000);
         }
     };
 
@@ -118,9 +118,9 @@ const ProductDetail = () => {
             </div>
 
             {/* ── RIGHT: Product Info ──────────────────────────────── */}
-            <div style={{ flex: '1 1 380px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-                <h1 style={{ fontSize: '2rem', marginBottom: '0.8rem', lineHeight: 1.3 }}>{product.name}</h1>
-                <p style={{ fontSize: '2rem', color: 'var(--primary)', fontWeight: 800, marginBottom: '1rem' }}>
+            <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column' }}>
+                <h1 style={{ fontSize: '2.5rem', margin: '0 0 1rem 0', color: 'var(--text-orange)' }}>{product.name}</h1>
+                <p style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-orange)', margin: '0 0 1.5rem 0' }}>
                     {product.price}个Q币
                 </p>
                 <div style={{ color: 'var(--text-light)', lineHeight: '1.7', marginBottom: '1.5rem', fontSize: '0.97rem' }}>

@@ -4,6 +4,7 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import GlassSelect from '../../components/GlassSelect';
 
 interface Product {
     id: number;
@@ -12,55 +13,58 @@ interface Product {
     price: number;
     imageUrl: string;
     stock: number;
+    branch?: string;
 }
+
+interface Announcement {
+    id: number;
+    content: string;
+    branch: string;
+}
+
+let sessionStarted = false;
 
 const Home = () => {
     const location = useLocation();
     const fromCart = location.state?.fromCart;
 
     const [products, setProducts] = useState<Product[]>([]);
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [announcement, setAnnouncement] = useState<string | null>(null);
     const [showPopup, setShowPopup] = useState(false);
     const [showBalancePrompt, setShowBalancePrompt] = useState(false);
-    const [balanceInput, setBalanceInput] = useState('');
+    const [balanceInput, setBalanceInput] = useState(localStorage.getItem('user_qbit_balance') || '');
+    const defaultBranch = localStorage.getItem('user_branch');
+    const [branchInput, setBranchInput] = useState(defaultBranch === '全部' ? '' : (defaultBranch || ''));
+    const [userBranch, setUserBranch] = useState(defaultBranch === '全部' ? '' : (defaultBranch || ''));
+    const [branchList, setBranchList] = useState<string[]>([]);
 
     const closePopup = () => {
         setShowPopup(false);
-        if (announcement) {
-            localStorage.setItem('qbit_last_announcement', announcement);
-        }
-        if (!fromCart) {
-            setShowBalancePrompt(true);
-        }
     };
 
     useEffect(() => {
-        // Fetch products and announcement in parallel
         Promise.all([
             axios.get('http://localhost:5000/api/products'),
-            axios.get('http://localhost:5000/api/settings/ANNOUNCEMENT_MD').catch(() => null)
+            axios.get('http://localhost:5000/api/announcements').catch(() => ({ data: [] })),
+            axios.get('http://localhost:5000/api/settings/BRANCH_LIST').catch(() => ({ data: { value: '[]' } }))
         ])
-            .then(([productsRes, settingsRes]) => {
-                let announcementTriggered = false;
+            .then(([productsRes, annRes, branchRes]) => {
                 setProducts(productsRes.data);
-                if (settingsRes && settingsRes.data && settingsRes.data.value) {
-                    const fetchedAnnouncement = settingsRes.data.value;
-                    setAnnouncement(fetchedAnnouncement);
-
-                    // Check if it's new or updated
-                    const lastSeen = localStorage.getItem('qbit_last_announcement');
-                    if (fetchedAnnouncement !== lastSeen) {
-                        setShowPopup(true);
-                        announcementTriggered = true;
-                    }
+                const anns = annRes.data || [];
+                setAnnouncements(anns);
+                
+                try {
+                    setBranchList(JSON.parse(branchRes.data.value || '[]'));
+                } catch(e) {
+                    setBranchList([]);
                 }
 
-                if (!announcementTriggered && !fromCart) {
+                if (!sessionStarted && !fromCart) {
                     setShowBalancePrompt(true);
                 }
-
                 setLoading(false);
             })
             .catch(err => {
@@ -76,11 +80,32 @@ const Home = () => {
         const num = parseFloat(balanceInput);
         if (!isNaN(num) && num >= 0) {
             localStorage.setItem('user_qbit_balance', num.toString());
+            localStorage.setItem('user_branch', branchInput);
+            setUserBranch(branchInput);
             setShowBalancePrompt(false);
+            sessionStarted = true;
+
+            // Check for announcement matching the branch
+            const relevantAnn = announcements.find(a => a.branch === branchInput || a.branch === '全部');
+            if (relevantAnn) {
+                setAnnouncement(relevantAnn.content);
+                setShowPopup(true);
+            }
         } else {
             alert('请输入有效的Q币金额');
         }
     };
+
+    const filteredProducts = products.filter(p => {
+        let productBranches: string[] = [];
+        try {
+            const parsed = JSON.parse(p.branch || '[]');
+            productBranches = Array.isArray(parsed) ? parsed : [p.branch || '全部'];
+        } catch {
+            productBranches = [p.branch || '全部'];
+        }
+        return productBranches.includes('全部') || productBranches.includes(userBranch) || productBranches.length === 0;
+    });
 
     if (loading) return (
         <div className="container fade-in" style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-light)' }}>
@@ -114,37 +139,37 @@ const Home = () => {
 
     return (
         <div className="fade-in">
-            <div style={{
+            <div className="glass" style={{
                 textAlign: 'center',
                 margin: '1.5rem 0 2rem 0',
                 padding: '2rem 1.5rem',
-                backgroundColor: 'var(--primary)',
-                color: 'white',
+                color: 'var(--text-dark)',
                 borderRadius: 'var(--radius-lg)'
             }}>
-                <h1 style={{ fontSize: '2rem', margin: '0 0 0.8rem 0' }}>欢迎来到 承品淘货网</h1>
-                <p style={{ fontSize: '1rem', opacity: 0.9, margin: 0 }}>承品老师们在班上都看得到你很好的表现<br />奖励你用智力Q币来换去你想要的礼物🎁</p>
+                <h1 style={{ fontSize: '2rem', margin: '0 0 0.8rem 0', color: 'var(--text-orange)' }}>欢迎来到 承品淘货网</h1>
+                <p style={{ fontSize: '1rem', opacity: 0.9, margin: 0, color: 'var(--text-light)' }}>承品老师们在班上都看得到你很好的表现<br />奖励你用智力Q币来换去你想要的礼物🎁</p>
             </div>
 
-            {products.length === 0 ? (
+            {filteredProducts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-light)' }}>
                     暂无产品，请联系管理员添加产品。
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
-                    {products.map(p => (
+                    {filteredProducts.map(p => (
                         <Link
+                            className="glass"
                             to={`/product/${p.id}`}
                             key={p.id}
                             style={{
                                 display: 'block',
-                                backgroundColor: 'var(--card-bg)',
                                 borderRadius: 'var(--radius-lg)',
                                 overflow: 'hidden',
-                                boxShadow: 'var(--shadow-sm)',
-                                transition: 'transform 0.2s',
+                                transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s',
                                 textDecoration: 'none'
                             }}
+                            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-5px)'}
+                            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
                         >
                             <img
                                 src={p.imageUrl || 'https://placehold.co/400x300?text=No+Image'}
@@ -152,12 +177,12 @@ const Home = () => {
                                 style={{ width: '100%', height: '200px', objectFit: 'cover' }}
                             />
                             <div style={{ padding: '1.5rem' }}>
-                                <h3 style={{ margin: '0 0 0.5rem 0' }}>{p.name}</h3>
+                                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-orange)' }}>{p.name}</h3>
                                 <p style={{ color: 'var(--text-light)', margin: '0 0 1rem 0', fontSize: '0.9rem' }}>
                                     {p.description.length > 60 ? p.description.substring(0, 60) + '...' : p.description}
                                 </p>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{p.price}个Q币</span>
+                                    <span style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--text-orange)' }}>{p.price}个Q币</span>
                                     <span className="btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.9rem' }}>View</span>
                                 </div>
                             </div>
@@ -174,18 +199,18 @@ const Home = () => {
                     zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     padding: '1rem', animation: 'fadeIn 0.3s ease-out'
                 }}>
-                    <div style={{
-                        backgroundColor: 'white',
+                    <div className="glass" style={{
                         width: '100%', maxWidth: '600px',
                         maxHeight: '85vh',
                         borderRadius: 'var(--radius-lg)',
-                        overflow: 'hidden',
                         display: 'flex', flexDirection: 'column',
-                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)'
+                        background: 'rgba(255, 255, 255, 0.85)',
+                        border: '1px solid rgba(255, 255, 255, 0.6)'
                     }}>
                         <div style={{
-                            padding: '1.2rem', backgroundColor: 'var(--primary)', color: 'white',
-                            textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold'
+                            padding: '1.2rem', color: 'var(--text-dark)',
+                            textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold', borderBottom: '1px solid rgba(0,0,0,0.05)',
+                            borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0'
                         }}>
                             📢 最新公告 Special Announcement
                         </div>
@@ -198,9 +223,10 @@ const Home = () => {
                             </ReactMarkdown>
                         </div>
                         <div style={{
-                            padding: '1.2rem', backgroundColor: '#F8FAFC',
-                            borderTop: '1px solid var(--border-color)',
-                            display: 'flex', justifyContent: 'center'
+                            padding: '1.2rem',
+                            borderTop: '1px solid rgba(0,0,0,0.05)',
+                            display: 'flex', justifyContent: 'center',
+                            borderRadius: '0 0 var(--radius-lg) var(--radius-lg)'
                         }}>
                             <button
                                 className="btn-primary"
@@ -222,17 +248,17 @@ const Home = () => {
                     zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     padding: '1rem', animation: 'fadeIn 0.3s ease-out'
                 }}>
-                    <div style={{
-                        backgroundColor: 'white',
+                    <div className="glass" style={{
                         width: '100%', maxWidth: '400px',
                         borderRadius: 'var(--radius-lg)',
-                        overflow: 'hidden',
                         display: 'flex', flexDirection: 'column',
-                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)'
+                        background: 'rgba(255, 255, 255, 0.85)',
+                        border: '1px solid rgba(255, 255, 255, 0.6)'
                     }}>
                         <div style={{
-                            padding: '1.2rem', backgroundColor: 'var(--primary)', color: 'white',
-                            textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold'
+                            padding: '1.2rem', color: 'var(--text-dark)',
+                            textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold', borderBottom: '1px solid rgba(0,0,0,0.05)',
+                            borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0'
                         }}>
                             💰 现有Q币余额
                         </div>
@@ -247,11 +273,21 @@ const Home = () => {
                                 value={balanceInput}
                                 onChange={e => setBalanceInput(e.target.value)}
                                 placeholder="输入现有Q币 (例: 50)"
+                                className="glass-input"
                                 style={{
                                     width: '100%', padding: '0.8rem', fontSize: '1.1rem',
-                                    borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)',
+                                    borderRadius: 'var(--radius-md)',
                                     textAlign: 'center', boxSizing: 'border-box'
                                 }}
+                            />
+                            <p style={{ margin: '-0.3rem 0 0', textAlign: 'center', fontSize: '1rem', color: '#EF4444', fontWeight: 700 }}>若发现报假Q币数量将会拉入黑名单！</p>
+                            <p style={{ margin: 0, textAlign: 'center', fontSize: '1rem', color: 'var(--text-dark)', marginTop: '0.5rem' }}>选择分院：</p>
+                            <GlassSelect
+                                required
+                                value={branchInput}
+                                onChange={val => setBranchInput(val)}
+                                placeholder="请选择您的分院..."
+                                options={branchList.map(b => ({ value: b, label: b }))}
                             />
                             <button
                                 type="submit"

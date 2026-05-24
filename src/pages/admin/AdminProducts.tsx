@@ -9,20 +9,35 @@ interface Product {
     stock: number;
     imageUrl: string;
     images?: string; // JSON string of URL array
+    branch?: string;
 }
 
 const MAX_IMAGES = 10;
 
 const AdminProducts = () => {
     const [products, setProducts] = useState<Product[]>([]);
-    const [form, setForm] = useState<Product>({ name: '', description: '', price: 0, stock: 0, imageUrl: '' });
+    const [form, setForm] = useState<Product>({ name: '', description: '', price: 0, stock: 0, imageUrl: '', branch: '全部' });
     const [imageUrls, setImageUrls] = useState<string[]>([]); // holds the uploaded URLs
     const [editingId, setEditingId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [newImageUrl, setNewImageUrl] = useState('');
+    const [branchList, setBranchList] = useState<string[]>([]);
 
-    useEffect(() => { fetchProducts(); }, []);
+    useEffect(() => { 
+        fetchProducts(); 
+        fetchBranchList();
+    }, []);
+
+    const fetchBranchList = async () => {
+        try {
+            const res = await axios.get('http://localhost:5000/api/settings/BRANCH_LIST');
+            const list = JSON.parse(res.data.value || '[]');
+            setBranchList(list);
+        } catch (err) {
+            // ignore
+        }
+    };
 
     const fetchProducts = async () => {
         try {
@@ -63,6 +78,7 @@ const AdminProducts = () => {
             ...form,
             imageUrl: form.imageUrl || (imageUrls[0] || ''),
             images: imageUrls,
+            branch: form.branch || '["全部"]', // ensuring it acts as JSON array
         };
         console.log('[Frontend Submit Payload]', payload);
 
@@ -85,7 +101,7 @@ const AdminProducts = () => {
     };
 
     const resetForm = () => {
-        setForm({ name: '', description: '', price: 0, stock: 0, imageUrl: '' });
+        setForm({ name: '', description: '', price: 0, stock: 0, imageUrl: '', branch: '全部' });
         setImageUrls([]);
         setNewImageUrl('');
         setEditingId(null);
@@ -148,6 +164,53 @@ const AdminProducts = () => {
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <input placeholder="Product Name *" required value={form.name}
                             onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle} />
+                        <div style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: '#F9FAFB' }}>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.6rem', fontSize: '0.92rem' }}>
+                                📍 勾选上架的分院
+                            </label>
+                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                {(() => {
+                                    let checkedBranches: string[] = [];
+                                    try {
+                                        const parsed = JSON.parse(form.branch || '[]');
+                                        checkedBranches = Array.isArray(parsed) ? parsed : [form.branch || '全部'];
+                                    } catch {
+                                        checkedBranches = [form.branch || '全部'];
+                                    }
+
+                                    const handleCheck = (b: string, checked: boolean) => {
+                                        let current = [...checkedBranches];
+                                        if (b === '全部') {
+                                            current = checked ? ['全部'] : [];
+                                        } else {
+                                            if (checked) {
+                                                current = current.filter(x => x !== '全部');
+                                                if (!current.includes(b)) current.push(b);
+                                            } else {
+                                                current = current.filter(x => x !== b);
+                                            }
+                                        }
+                                        if (current.length === 0) current = ['全部'];
+                                        setForm({ ...form, branch: JSON.stringify(current) });
+                                    };
+
+                                    return (
+                                        <>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={checkedBranches.includes('全部')} onChange={e => handleCheck('全部', e.target.checked)} />
+                                                全部 (所有分院)
+                                            </label>
+                                            {branchList.map(b => (
+                                                <label key={b} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                                                    <input type="checkbox" checked={checkedBranches.includes(b)} onChange={e => handleCheck(b, e.target.checked)} />
+                                                    {b}
+                                                </label>
+                                            ))}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
                         <textarea placeholder="Description * (支持 Markdown 语法)" required rows={3} value={form.description}
                             onChange={e => setForm({ ...form, description: e.target.value })} style={{ ...inputStyle, resize: 'vertical' }} />
                         <div style={{ display: 'flex', gap: '1rem' }}>
@@ -253,7 +316,15 @@ const AdminProducts = () => {
                                         <div style={{ minWidth: 0 }}>
                                             <h4 style={{ margin: '0 0 0.3rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</h4>
                                             <span style={{ color: 'var(--text-light)', fontSize: '0.85rem' }}>
-                                                {p.price}个Q币 &nbsp;|&nbsp; Stock: {p.stock} &nbsp;|&nbsp; {imagesArr.length || (p.imageUrl ? 1 : 0)} image{imagesArr.length !== 1 ? 's' : ''}
+                                                {p.price}个Q币 &nbsp;|&nbsp; Stock: {p.stock} &nbsp;|&nbsp; 分院: {(() => {
+                                                    try {
+                                                        const parsed = JSON.parse(p.branch || '[]');
+                                                        if (Array.isArray(parsed)) return parsed.join(', ');
+                                                        return p.branch || '全部';
+                                                    } catch {
+                                                        return p.branch || '全部';
+                                                    }
+                                                })()} &nbsp;|&nbsp; {imagesArr.length || (p.imageUrl ? 1 : 0)} image{imagesArr.length !== 1 ? 's' : ''}
                                             </span>
                                         </div>
                                     </div>

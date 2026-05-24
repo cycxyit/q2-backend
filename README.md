@@ -6,7 +6,7 @@ This is the React + Vite frontend for the Qbit Ecommerce shop.
 
 You can deploy the frontend directly to Vercel with one click:
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2F[YOUR_GITHUB_USERNAME]%2F[YOUR_REPO_NAME]&root-directory=frontend&env=VITE_API_URL)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fcycxyit%2Fq2-backend&root-directory=frontend&env=VITE_API_URL)
 
 > **⚠️ 注意 / Note:**
 >

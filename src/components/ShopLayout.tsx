@@ -5,8 +5,8 @@ import { ShoppingCart } from 'lucide-react';
 const ShopLayout = () => {
     return (
         <div className="shop-layout">
-            <nav style={{ backgroundColor: 'white', padding: '1rem 2rem', borderBottom: '2px solid var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--primary)', letterSpacing: '-0.5px' }}>
+            <nav className="glass-nav" style={{ padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+                <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--text-orange)', letterSpacing: '-0.5px' }}>
                     <img src="/logo.jpeg" alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '50%' }} />
                     <span style={{ fontFamily: 'Georgia, serif' }}>承品MEMBER'S DAY <span style={{ fontSize: '1.2rem' }}>淘货网</span></span>
                 </Link>
@@ -23,7 +23,7 @@ const ShopLayout = () => {
                 <Outlet />
             </main>
 
-            <footer style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)', marginTop: '4rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'white' }}>
+            <footer className="glass" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-light)', marginTop: '4rem', borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0', borderBottom: 'none' }}>
                 © 2026 承品MEMBER'S DAY 淘货网. All rights reserved.
             </footer>
         </div>

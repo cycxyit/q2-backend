@@ -1,23 +1,35 @@
 :root {
-  --primary: #FF4500;
-  --primary-hover: #E03E00;
-  --bg-color: #F8FAFC;
-  --card-bg: #FFFFFF;
-  --text-dark: #1E293B;
-  --text-light: #64748B;
-  --border-color: #fca5a5;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-  --radius-lg: 12px;
-  --radius-md: 8px;
+  --primary: #FFBC99;
+  --primary-hover: #ffad82;
+  --primary-text: #5c3a21; /* Dark text for contrast on primary button */
+  
+  /* Mesh Gradient Background for Glassmorphism */
+  --bg-gradient: linear-gradient(135deg, #FFFCFA 0%, #FFF2EB 50%, #FFF7F2 100%);
+  
+  /* Translucent backgrounds for Glassmorphism */
+  --card-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.8);
+  
+  --text-dark: #1C1512;
+  --text-light: #4A3E39;
+  --text-orange: #FF5E00; /* Vibrant orange for titles and prices */
+  
+  --border-color: rgba(255, 188, 153, 0.4);
+  --shadow-sm: 0 8px 32px rgba(255, 140, 100, 0.08);
+  --shadow-md: 0 12px 40px rgba(255, 140, 100, 0.12);
+  --radius-lg: 20px;
+  --radius-md: 12px;
 }
 
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--bg-color);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
   color: var(--text-dark);
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
 }
 
 * {
@@ -35,19 +47,30 @@ button {
   border: none;
   background: none;
   font-family: inherit;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-primary {
   background-color: var(--primary);
-  color: white;
-  padding: 0.75rem 1.5rem;
+  color: var(--primary-text);
+  padding: 0.8rem 1.8rem;
   border-radius: var(--radius-md);
-  font-weight: 500;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(255, 188, 153, 0.4);
 }
+
 .btn-primary:hover {
   background-color: var(--primary-hover);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 188, 153, 0.6);
+}
+
+.btn-primary:disabled {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
 }
 
 .container {
@@ -56,11 +79,43 @@ button {
   padding: 0 2rem;
 }
 
+/* Glassmorphism Utility Classes */
+.glass {
+  background: var(--card-bg) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border: 1px solid var(--border-color) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text-dark) !important;
+  transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--primary) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 0 0 3px rgba(255, 188, 153, 0.3) !important;
+}
+
 .fade-in {
-  animation: fadeIn 0.4s ease-out;
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
 }

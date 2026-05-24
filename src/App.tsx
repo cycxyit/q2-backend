@@ -8,6 +8,7 @@ import Checkout from './pages/shop/Checkout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminAnnouncements from './pages/admin/AdminAnnouncements';
 import Login from './pages/admin/Login';
 
 // Redirects to /admin/login if no token is found in localStorage
@@ -44,6 +45,7 @@ function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="products" element={<AdminProducts />} />
+          <Route path="announcements" element={<AdminAnnouncements />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>

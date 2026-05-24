@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import GlassSelect from '../../components/GlassSelect';
 
 const Checkout = () => {
     const [cart, setCart] = useState<any[]>([]);
     const [stockMap, setStockMap] = useState<Record<number, number>>({});
     const [stockLoading, setStockLoading] = useState(true);
-    const [form, setForm] = useState({ name: '', phone: '', address: '', branch: '', remarks: '' });
+    const [form, setForm] = useState({ 
+        name: '', 
+        phone: '', 
+        address: '', 
+        branch: localStorage.getItem('user_branch') || '全部', 
+        remarks: '' 
+    });
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [orderId, setOrderId] = useState<string | null>(null);
     const [userBalance, setUserBalance] = useState<number | null>(null);
+    const [branchList, setBranchList] = useState<string[]>([]);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -38,7 +47,18 @@ const Checkout = () => {
             }
         };
 
+        const fetchBranchList = async () => {
+            try {
+                const res = await axios.get('http://localhost:5000/api/settings/BRANCH_LIST');
+                const list = JSON.parse(res.data.value || '[]');
+                setBranchList(list);
+            } catch (err) {
+                // ignore
+            }
+        };
+
         fetchStock();
+        fetchBranchList();
         const interval = setInterval(fetchStock, 5000);
         return () => clearInterval(interval);
     }, []);
@@ -79,8 +99,13 @@ const Checkout = () => {
     const isOverspending = userBalance !== null && total > userBalance;
     const canSubmit = cart.length > 0 && !loading && !hasInsufficientStock && !isOverspending;
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setShowConfirmModal(true);
+    };
+
+    const confirmOrder = async () => {
+        setShowConfirmModal(false);
         setLoading(true);
         setError(null);
 
@@ -170,11 +195,9 @@ const Checkout = () => {
                 <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>🛒 Shopping Cart ({cart.length} items)</h2>
 
                 {cart.length === 0 ? (
-                    <div style={{
+                    <div className="glass" style={{
                         textAlign: 'center', padding: '3rem',
-                        backgroundColor: 'var(--card-bg)',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '2px dashed var(--border-color)'
+                        borderRadius: 'var(--radius-lg)'
                     }}>
                         <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🛒</div>
                         <p style={{ color: 'var(--text-light)', marginBottom: '1.5rem' }}>Your cart is empty</p>
@@ -188,15 +211,12 @@ const Checkout = () => {
                             const isOutOfStock = !stockLoading && currentStock === 0;
 
                             return (
-                                <div key={i} style={{
+                                <div className="glass" key={i} style={{
                                     display: 'flex', gap: '1.2rem',
                                     padding: '1rem 1.2rem',
-                                    backgroundColor: isInsufficient ? '#f3f4f6' : 'var(--card-bg)',
                                     opacity: isInsufficient ? 0.6 : 1,
                                     filter: isInsufficient ? 'grayscale(100%)' : 'none',
                                     borderRadius: 'var(--radius-lg)',
-                                    boxShadow: 'var(--shadow-sm)',
-                                    border: isInsufficient ? '1px solid #ef4444' : '1px solid var(--border-color)',
                                     alignItems: 'flex-start'
                                 }}>
                                     {/* Product Image */}
@@ -211,10 +231,10 @@ const Checkout = () => {
                                         {/* Top: Name & Price */}
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <h4 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                <h4 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', color: 'var(--text-orange)' }}>
                                                     {item.name}
                                                 </h4>
-                                                <p style={{ margin: 0, color: 'var(--primary)', fontWeight: 700, fontSize: '0.95rem' }}>
+                                                <p style={{ margin: 0, color: 'var(--text-orange)', fontWeight: 700, fontSize: '0.95rem' }}>
                                                     {item.price}个Q币 <span style={{ color: 'var(--text-light)', fontWeight: 400, fontSize: '0.85rem' }}>each</span>
                                                 </p>
                                                 {isOutOfStock ? (
@@ -223,7 +243,7 @@ const Checkout = () => {
                                                     <p style={{ margin: '0.4rem 0 0', color: '#EF4444', fontSize: '0.85rem', fontWeight: 'bold' }}>⚠️ 库存不足 (仅剩 {currentStock} 件)</p>
                                                 ) : null}
                                             </div>
-                                            <div style={{ textAlign: 'right', fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-dark)', whiteSpace: 'nowrap' }}>
+                                            <div style={{ textAlign: 'right', fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-orange)', whiteSpace: 'nowrap' }}>
                                                 {(item.price * item.quantity).toFixed(2)}个Q币
                                             </div>
                                         </div>
@@ -286,18 +306,16 @@ const Checkout = () => {
                         })}
 
                         {/* Cart Total Bar */}
-                        <div style={{
+                        <div className="glass" style={{
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                             padding: '1rem 1.2rem',
-                            backgroundColor: 'var(--card-bg)',
                             borderRadius: 'var(--radius-lg)',
-                            borderTop: '2px solid var(--primary)',
-                            boxShadow: 'var(--shadow-sm)'
+                            borderTop: '2px solid var(--primary)'
                         }}>
                             <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>
                                 Total ({cart.reduce((acc, i) => acc + i.quantity, 0)} items)
                             </span>
-                            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>
+                            <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-orange)' }}>
                                 {total.toFixed(2)}个Q币
                             </span>
                         </div>
@@ -306,13 +324,11 @@ const Checkout = () => {
             </div>
 
             {/* ── RIGHT: Contact Form ──────────────────────────────── */}
-            <div style={{
+            <div className="glass" style={{
                 flex: '1 1 320px',
-                backgroundColor: 'var(--card-bg)',
                 padding: '2rem',
                 borderRadius: 'var(--radius-lg)',
-                boxShadow: 'var(--shadow-sm)',
-                position: 'sticky', top: '2rem'
+                position: 'sticky', top: '5rem'
             }}>
                 <h3 style={{ marginTop: 0, marginBottom: '1.5rem' }}>📋 Order Details</h3>
 
@@ -335,18 +351,20 @@ const Checkout = () => {
                         <div key={key}>
                             <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.9rem' }}>{label}</label>
                             <input
+                                className="glass-input"
                                 required={required}
                                 type={type}
                                 placeholder={placeholder}
                                 value={(form as any)[key]}
                                 onChange={e => setForm({ ...form, [key]: e.target.value })}
-                                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.95rem', boxSizing: 'border-box' }}
                             />
                         </div>
                     ))}
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.9rem' }}>补习时间 Tuition Timetable</label>
                         <textarea
+                            className="glass-input"
                             required
                             rows={5}
                             value={form.address}
@@ -355,27 +373,31 @@ const Checkout = () => {
 星期一 Mandy老师 MM 4pm
 星期二 易老师 SEJ 5.30pm
 星期三 康老师 SN 4pm`}
-                            style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', resize: 'vertical', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', resize: 'vertical', fontSize: '0.95rem', boxSizing: 'border-box' }}
                         />
                     </div>
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.9rem' }}>补习分院 Tuition Branch</label>
-                        <input
+                        <GlassSelect
                             required
-                            type="text"
+                            disabled
                             value={form.branch}
-                            onChange={e => setForm({ ...form, branch: e.target.value })}
-                            placeholder="HQ/Saleng"
-                            style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                            onChange={val => setForm({ ...form, branch: val })}
+                            placeholder="请选择你的补习分院..."
+                            options={branchList.map(b => ({ value: b, label: b }))}
                         />
+                        <div style={{ marginTop: '0.3rem', fontSize: '0.8rem', color: 'var(--text-light)' }}>
+                            * 分院选项已根据您的初始选择自动锁定。
+                        </div>
                     </div>
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500, fontSize: '0.9rem' }}>Remark 备注 (Optional)</label>
                         <input
+                            className="glass-input"
                             type="text"
                             value={form.remarks}
                             onChange={e => setForm({ ...form, remarks: e.target.value })}
-                            style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.95rem', boxSizing: 'border-box' }}
                         />
                     </div>
 
@@ -389,6 +411,61 @@ const Checkout = () => {
                     </button>
                 </form>
             </div>
+
+            {/* Confirmation Modal */}
+            {showConfirmModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)',
+                    zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1rem', animation: 'fadeIn 0.3s ease-out'
+                }}>
+                    <div className="glass" style={{
+                        width: '100%', maxWidth: '400px',
+                        borderRadius: 'var(--radius-lg)',
+                        display: 'flex', flexDirection: 'column',
+                        background: 'rgba(255, 255, 255, 0.85)',
+                        border: '1px solid rgba(255, 255, 255, 0.6)'
+                    }}>
+                        <div style={{
+                            padding: '1.2rem', color: 'var(--text-dark)',
+                            textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold', borderBottom: '1px solid rgba(0,0,0,0.05)',
+                            borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0'
+                        }}>
+                            ❓ 确认下单
+                        </div>
+                        <div style={{ padding: '1.5rem', textAlign: 'center', fontSize: '1.05rem', color: 'var(--text-dark)' }}>
+                            <p style={{ margin: '0 0 1.5rem 0' }}>是否确认提交此订单？<br/><span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-orange)' }}><br/>{total.toFixed(2)}个Q币</span></p>
+                            
+                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                                <button
+                                    onClick={() => setShowConfirmModal(false)}
+                                    style={{
+                                        padding: '0.8rem 1.5rem',
+                                        borderRadius: 'var(--radius-md)',
+                                        border: '1px solid var(--border-color)',
+                                        backgroundColor: 'white',
+                                        fontSize: '1rem', cursor: 'pointer', flex: 1,
+                                        fontWeight: 600, color: 'var(--text-light)'
+                                    }}
+                                >
+                                    取消 Cancel
+                                </button>
+                                <button
+                                    onClick={confirmOrder}
+                                    className="btn-primary"
+                                    style={{
+                                        padding: '0.8rem 1.5rem',
+                                        fontSize: '1rem', flex: 1, margin: 0
+                                    }}
+                                >
+                                    确定 Confirm
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
